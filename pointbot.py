@@ -134,6 +134,7 @@ class PointsBot(threading.Thread):
                 else:
                     amount *= 0
                 current += amount
+                pointpattern = re.compile('('+user+'\t\d\t\d\t\d\t)(\d+)(.*)')
                 sendMessage(s, channelName, '@{} rolled a {}. You now have {} points'.format(user, roll, current))
                 data = re.sub(pointpattern, '\g<1>'+str(current)+'\g<3>', f.read())
                 f.seek(0)
