@@ -4,7 +4,7 @@ from pointbot import *
 
 def main():
     bot1 = PointsBot(CHANNEL)
-    bot2 = PointsBot('mrdubbs')
+    bot2 = PointsBot(HOME)
     bot1.start()
     bot2.start()
     while True:
