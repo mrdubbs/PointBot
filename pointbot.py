@@ -12,10 +12,10 @@ from time import *
 HOST = 'irc.chat.twitch.tv'
 PORT = 6667
 NICK = 'dubbsbot'
-PASS = 'oauth:nywwhny3tnm4z0yqiy51n0gb38jyac'
+PASS = '***'
 TWITCH = 'https://api.twitch.tv/kraken'
 HOME = 'mrdubbs'
-CLIENT_ID = '?client_id=bs6lblxhqd8k6qiniysylxewehd3oi'
+CLIENT_ID = '***'
 IO = 'iofiles/'
 
 class PointsBot(threading.Thread):
