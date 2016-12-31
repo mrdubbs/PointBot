@@ -6,15 +6,17 @@ from cfg import *
 import socket
 import re
 import random
+import os.path
 from time import *
 
 HOST = 'irc.chat.twitch.tv'
 PORT = 6667
 NICK = 'dubbsbot'
+PASS = 'oauth:nywwhny3tnm4z0yqiy51n0gb38jyac'
 TWITCH = 'https://api.twitch.tv/kraken'
 HOME = 'mrdubbs'
-PASS = '***'
-CLIENT_ID = '***' # removed for privacy reasons
+CLIENT_ID = '?client_id=bs6lblxhqd8k6qiniysylxewehd3oi'
+IO = 'iofiles/'
 
 class PointsBot(threading.Thread):
     def __init__(self, channelName, mySocket = None):
@@ -23,27 +25,29 @@ class PointsBot(threading.Thread):
         self.mySocket = joinChannel(channelName)
 
     def run(self):
-        self.getChatters(self.channelName)
-        modChatThread = threading.Thread(target = self.readChat, args = [self.mySocket, self.channelName])
-        getChattersThread = threading.Timer(300, self.getChatters, [self.channelName])
-        addPointsThread = threading.Thread(target = self.addPoints, args = [self.channelName])
+        #while not self.isOnline():
+          #  sleep(60)
+        self.getChatters()
+        modChatThread = threading.Thread(target = self.readChat)
+        getChattersThread = threading.Timer(300, self.getChatters)
+        addPointsThread = threading.Thread(target = self.addPoints)
         modChatThread.start()
         getChattersThread.start()
         addPointsThread.start()
 
-    def getChatters(self, channelName): # API refreshes every 5 miuntes, so should be enough to check status of all viewers per cycle
+    def getChatters(self): # API refreshes every 5 miuntes, so should be enough to check status of all viewers per cycle
         try:
-            query = urllib2.urlopen('https://tmi.twitch.tv/group/user/'+ channelName + '/chatters')
+            query = urllib2.urlopen('https://tmi.twitch.tv/group/user/'+ self.channelName + '/chatters')
         except (urllib2.HTTPError):
             return
         data = json.load(query)
         chatters = [elem for sublist in data['chatters'].values() for elem in sublist]
         starttime = '1'
-        print 'Loading chatters...'
-        with open(channelName+'.txt', 'a+') as f:
+        print self.channelName + '| Loading chatters...'
+        with open(IO + self.channelName + '.txt', 'a+') as f:
             data = f.read()
             newusers = [user for user in chatters if user not in data]
-            print '%d new users to add' % len(newusers)
+            print '{} new users to add'.format(len(newusers))
             data = data.splitlines()
             starttime = time()
             for i, userdata in enumerate(data):
@@ -55,19 +59,19 @@ class PointsBot(threading.Thread):
             f.write('\n') if data else ''
             f.truncate()
             for user in newusers:
-                f.write(user + '\t1\t' + str(1 if self.isFollowing(user, channelName) else 0) + '\t0\t0\n')
-        print 'Complete. Took %s seconds' % (time() - starttime)
+                f.write(user + '\t1\t' + str('1' if self.isFollowing(user) else '0') + '\t0\t0\n')
+        print self.channelName + ': Complete. Took %s seconds' % (time() - starttime)
 
-    def isFollowing(self, user, target): # approx. 6 requests per second == not too fast
+    def isFollowing(self, user): # approx. 6 requests per second == not too fast
         try:
-            query = urllib2.urlopen(TWITCH + '/users/' + user + '/follows/channels/' + target + CLIENT_ID)
+            query = urllib2.urlopen(TWITCH + '/users/' + user + '/follows/channels/' + self.channelName + CLIENT_ID)
             return True
         except (urllib2.HTTPError):
             return False
 
-    def addPoints(self, channelName): # add points every minute
+    def addPoints(self): # add points every minute
         while True:
-            with open(channelName+'.txt', 'r+') as f:
+            with open(IO + self.channelName+'.txt', 'a+') as f:
                 data = f.read().splitlines()
                 for i, userdata in enumerate(data):
                     userdata = userdata.split()
@@ -82,17 +86,18 @@ class PointsBot(threading.Thread):
                 f.write('\n'.join(data))
                 f.write('\n') if data else ''
                 f.truncate()
-            print channelName + ': Points added'
+                print f.read()
+            print self.channelName + ': Points added'
             sleep(60)
 
-    def readChat(self, s, channelName):
+    def readChat(self):
         sublist = set()
         count = 0
-        msgreg = re.compile('#'+channelName+' :(.*)')
+        msgreg = re.compile('#'+self.channelName+' :(.*)')
         while True:
-            response = s.recv(1024).decode('utf-8')
+            response = self.mySocket.recv(1024).decode('utf-8')
             if response == 'PING :tmi.twitch.tv\r\n':
-                s.send('PONG :tmi.twitch.tv\r\n'.encode('utf-8'))
+                self.mySocket.send('PONG :tmi.twitch.tv\r\n'.encode('utf-8'))
             else:
                 subbed = 'subscriber=1' in response
                 user = re.search('\w+!\w+@(.+?)\.tmi\.twitch\.tv', response)
@@ -101,29 +106,34 @@ class PointsBot(threading.Thread):
                     sublist.add(user)
                 try:
                     message = re.search(msgreg, response).group(1)
-                    print channelName + ' | ' + user + ': ' + message
+                    print user + ': ' + message
                     if message.split()[0][0] == '!':
-                        self.botChatResponse(user, channelName, message, s)
+                        self.botChatResponse(user, message)
                 except:
                     pass
             if len(sublist) > 3:
-                self.updateSubs(channelName, sublist)
+                self.updateSubs(sublist)
                 sublist = set()
             sleep(0.1)
 
-    def botChatResponse(self, user, channelName, command, s):
+    def botChatResponse(self, user, command):
         cmdlist = command.split()
-        if cmdlist[0] == '!join' and channelName == HOME:
-            with open('botjoins.txt', 'a+') as f:
+        if cmdlist[0] == '!join' and self.channelName == HOME:
+            with open(IO + 'botjoins.txt', 'a+') as f:
                 if user not in f.read():
                     f.write(user + '\n')
-            print 'Joining '+user+'\'s channel'
+                    newBot = PointsBot(user)
+                    newBot.start()
+                    self.sendMessage('Thanks for the invite, @'+user+'! Heading over to your channel right now')
+                else:
+                    self.sendMessage('I appreciate another invite, but I\'m already in your channel, @'+user)
         if cmdlist[0] == '!gamble' and channelName == HOME:
-            with open(channelName+'.txt', 'r+') as f:
-                current = getPoints(user, channelName)
+            with open(IO + channelName+'.txt', 'r+') as f:
+                current = getPoints(user, self.channelName)
                 amount = int(cmdlist[1])
+                data = f.read()
                 if amount > current:
-                    sendMessage(s, channelName, '@{}, you only have {} points'.format(user, current))
+                    self.sendMessage('@{}, you only have {} points'.format(user, current))
                     return
                 current -= amount
                 roll = random.randint(1, 100)
@@ -135,17 +145,53 @@ class PointsBot(threading.Thread):
                     amount *= 0
                 current += amount
                 pointpattern = re.compile('('+user+'\t\d\t\d\t\d\t)(\d+)(.*)')
-                sendMessage(s, channelName, '@{} rolled a {}. You now have {} points'.format(user, roll, current))
-                data = re.sub(pointpattern, '\g<1>'+str(current)+'\g<3>', f.read())
+                self.sendMessage('@{} rolled a {}. You now have {} points'.format(user, roll, current))
+                data = re.sub(pointpattern, '\g<1>'+str(current)+'\g<3>', data)
                 f.seek(0)
                 f.write(data)
                 f.truncate()
-        if cmdlist[0] == '!points' and channelName == HOME:
-            current = getPoints(user, channelName)
-            sendMessage(s, channelName, '@{}, you have {} points'.format(user, current))
+        if cmdlist[0] == '!points' and self.channelName == HOME:
+            current = getPoints(user, self.channelName)
+            self.sendMessage('@{}, you have {} points'.format(user, current))
+        if cmdlist[0] == '!addcom' and self.channelName == HOME:
+            if len(cmdlist) < 3 or cmdlist[1][0] != '!':
+                self.sendMessage('@{}, the format for adding commands is !addcom !<commandname> <message>'.format(user))
+                return
+            newcom = cmdlist[1]
+            message = cmdlist[2:]
+            with open(IO + self.channelName + 'cmd.txt', 'a+') as f:
+                if newcom in f.read():
+                    return
+                f.write(newcom + '\t' + ' '.join(message) + '\n')
+            self.sendMessage('@{}, {} was succesfully added!'.format(user, newcom))
+        if cmdlist[0] == '!delcom' and channelName == HOME:
+            if len(cmdlist) < 2 or cmdlist[1][0] != '!':
+                self.sendMessage('@{}, the format for deleting commands is !delcom !<commandname>'.format(user))
+                return
+            delcom = cmdlist[1]
+            with open(IO + self.channelName + 'cmd.txt', 'a+') as f:
+                data = f.read()
+                if delcom not in data:
+                    self.sendMessage('@{}, {} was not found'.format(user, delcom))
+                    return
+                data = data.splitlines()
+                f.seek(0)
+                for cmd in data:
+                    if delcom not in cmd:
+                        f.write(cmd + '\n')
+                f.truncate()
+            self.sendMessage('{} was successfully removed'.format(delcom))
 
-    def updateSubs(self, channelName, sublist):
-        with open(channelName+'.txt', 'r+') as f:
+        else:
+            with open(IO + self.channelName + 'cmd.txt', 'a+') as f:
+                com = cmdlist[0]
+                cmdsearch = re.compile(com + '\t(.*)')
+                cmdmatch = re.search(cmdsearch, f.read())
+                if cmdmatch:
+                    self.sendMessage(cmdmatch.group(1))
+
+    def updateSubs(self, sublist):
+        with open(IO + self.channelName+'.txt', 'r+') as f:
             data = f.read()
             f.seek(0)
             for sub in sublist:
@@ -154,13 +200,23 @@ class PointsBot(threading.Thread):
                     data = re.sub(pattern, r'\g<1>1\g<3>', data)
             f.write(data)
             f.truncate()
-        print channelName + ': Subs updated'
+        print self.channelName + ': Subs updated'
 
-def sendMessage(s, channelName, message):
-    s.send('PRIVMSG #{} :{}\r\n'.format(channelName, message).encode('utf-8'))
+    def isOnline(self):
+        try:
+            query = urllib2.urlopen(TWITCH + '/streams/'+ self.channelName + CLIENT_ID)
+        except (urllib2.HTTPError):
+            return False
+        data = json.load(query)
+        if data['stream']:
+            return True
+        return False
+
+    def sendMessage(self, message):
+        self.mySocket.send('PRIVMSG #{} :{}\r\n'.format(self.channelName, message).encode('utf-8'))
 
 def getPoints(user, channelName):
-    with open(channelName+'.txt', 'r+') as f:
+    with open(IO + channelName+'.txt', 'r') as f:
         data = f.read()
         pointpattern = re.compile('('+user+'\t\d\t\d\t\d\t)(\d+)(.*)')
         current = re.search(pointpattern, data)

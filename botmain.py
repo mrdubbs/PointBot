@@ -3,10 +3,11 @@ from time import *
 from pointbot import *
 
 def main():
-    bot1 = PointsBot(CHANNEL)
-    bot2 = PointsBot(HOME)
-    bot1.start()
-    bot2.start()
+    with open(IO + 'botjoins.txt', 'r') as f:
+        channels = f.read().split()
+        for channel in channels:
+            bot = PointsBot(channel)
+            bot.start()
     while True:
         pass
 
