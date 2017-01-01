@@ -1,13 +1,14 @@
-import threading
-from time import *
 from pointbot import *
 
 def main():
-    with open(IO + 'botjoins.txt', 'r') as f:
-        channels = f.read().split()
-        for channel in channels:
-            bot = PointsBot(channel)
-            bot.start()
+    if not executeSQL('show tables like "botjoins"'):
+        executeSQL('create table botjoins( channel varchar(255))')
+        executeSQL('insert into botjoins values("{}")'.format(HOME))
+    channellist = executeSQL('select channel from botjoins')
+    channellist = [channel['channel'] for channel in channellist]
+    for channel in channellist:
+        bot = PointsBot(channel)
+        bot.start()
     while True:
         pass
 

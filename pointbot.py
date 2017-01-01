@@ -1,6 +1,6 @@
 import mysql.connector as sql
 import json
-import urllib as urllib2
+import urllib as urllib2 # for compatibility reasons when moving between IDEs. Can just import urllib2.
 import threading
 import socket
 import re
@@ -16,6 +16,7 @@ CLIENT_ID = '***'
 IO = 'iofiles/'
 CONN = sql.connect(host='localhost', database = 'sys', user='root', password='***')
 CURSOR = CONN.cursor(dictionary=True)
+
 
 class PointsBot(threading.Thread):
     def __init__(self, channelName, mySocket = None):
