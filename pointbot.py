@@ -169,9 +169,9 @@ class PointsBot(threading.Thread):
     def sendMessage(self, message):
         self.mySocket.send('PRIVMSG #{} :{}\r\n'.format(self.channelName, message).encode('utf-8'))
 
-def executeSQL(command, multi = None):
+def executeSQL(command):
     try:
-        CURSOR.execute(command, multi)
+        CURSOR.execute(command)
     except sql.ProgrammingError as e:
         print 'here'
         print(e)
