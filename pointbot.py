@@ -103,6 +103,7 @@ class PointsBot(threading.Thread):
             newBot = PointsBot(user)
             newBot.start()
             self.sendMessage('Thanks for the invite, @' + user + '! Heading over to your channel right now')
+            
         elif cmdlist[0] == '!gamble' and self.channelName == HOME:
             if executeSQL('show tables like "{}"'.format(self.channelName)):
                 amount = int(cmdlist[1])
@@ -117,35 +118,43 @@ class PointsBot(threading.Thread):
                     rnum = int(vals[0]['@rnum'])
                     points = int(vals[0]['points'])
                     self.sendMessage('@{} rolled a {} and now has {} points'.format(user, rnum, points))
+                    
         elif cmdlist[0] == '!points' and self.channelName == HOME:
             current = getPoints(user, self.channelName)
             self.sendMessage('@{}, you have {} points'.format(user, current))
+            
         elif cmdlist[0] == '!addcom' and self.channelName == HOME:
             if len(cmdlist) < 3 or cmdlist[1][0] != '!':
                 self.sendMessage('@{}, the format for adding commands is !addcom !<commandname> <message>'.format(user))
                 return
+            
             if executeSQL('show tables like "{}"'.format(self.channelName)):
                 newcom = cmdlist[1]
                 message = str(' '.join(cmdlist[2:])).strip('[]')
                 executeSQL('insert into {} values("{}", "{}")'.format(self.channelName + 'cmd', newcom, message))
                 self.sendMessage('@{}, {} was succesfully added!'.format(user, newcom))
+                
         elif cmdlist[0] == '!delcom' and self.channelName == HOME:
             if len(cmdlist) < 2 or cmdlist[1][0] != '!':
                 self.sendMessage('@{}, the format for deleting commands is !delcom !<commandname>'.format(user))
                 return
+            
             if executeSQL('show tables like "{}"'.format(self.channelName)):
                 delcom = cmdlist[1]
                 executeSQL('delete from {} where cmd = "{}"'.format(self.channelName + 'cmd', delcom))
             self.sendMessage('{} was successfully removed'.format(delcom))
+            
         elif cmdlist[0] == '!editcom' and self.channelName == HOME:
             if len(cmdlist) < 3 or cmdlist[1][0] != '!':
                 self.sendMessage('@{}, the format for editing commands is !editcom !<commandname> <newmessage>'.format(user))
                 return
+            
             if executeSQL('show tables like "{}"'.format(self.channelName)):
                 newcom = cmdlist[1]
                 message = str(' '.join(cmdlist[2:])).strip('[]')
                 executeSQL('update {} set message = "{}" where cmd = "{}"'.format(self.channelName + 'cmd', message, newcom))
                 self.sendMessage('@{}, {} was succesfully edited!'.format(user, newcom))
+                
         else:
             if executeSQL('show tables like "{}"'.format(self.channelName)):
                 cmd = cmdlist[0]
@@ -173,10 +182,8 @@ def executeSQL(command):
     try:
         CURSOR.execute(command)
     except sql.ProgrammingError as e:
-        print 'here'
         print(e)
     if CURSOR.description:
-        print CURSOR.description
         return CURSOR.fetchall()
     CONN.commit()
 
