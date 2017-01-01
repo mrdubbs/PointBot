@@ -4,19 +4,7 @@ import urllib as urllib2 # for compatibility reasons when moving between IDEs. C
 import threading
 import socket
 import re
-from time import *
-
-HOST = 'irc.chat.twitch.tv'
-PORT = 6667
-NICK = 'dubbsbot'
-PASS = '***'
-TWITCH = 'https://api.twitch.tv/kraken'
-HOME = 'mrdubbs'
-CLIENT_ID = '***'
-IO = 'iofiles/'
-CONN = sql.connect(host='localhost', database = 'sys', user='root', password='***')
-CURSOR = CONN.cursor(dictionary=True)
-
+from time import sleep
 
 class PointsBot(threading.Thread):
     def __init__(self, channelName, mySocket = None):
