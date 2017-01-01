@@ -10,9 +10,9 @@ Loyalty Tracking Bot for Twitch by MrDubbs
 
 TODO:
 
-1. Join all requesting channels upon startup (store channels on file)
-2. Monitor online/offline status of serviced channels
-3. Add SQL functionality instead of reading from file
+1. Join all requesting channels upon startup (store channels on file) (ADDED)
+2. Monitor online/offline status of serviced channels (ADDED)
+3. Add SQL functionality instead of reading from file (ADDED)
 4. Host bot on server so that always active
-5. Add moderator functionality (bans, timeouts, custom commands)
+5. Add moderator functionality (bans, timeouts, custom commands) (CUSTOM COMMANDS ADDED)
 6. Limit command usage to prevent spam
