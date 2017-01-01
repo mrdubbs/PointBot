@@ -4,6 +4,7 @@ import urllib as urllib2 # for compatibility reasons when moving between IDEs. C
 import threading
 import socket
 import re
+from cfg import *
 from time import sleep
 
 class PointsBot(threading.Thread):
