@@ -59,7 +59,7 @@ class PointsBot(threading.Thread):
         followlist = list()
         if newusers:
             # multithreading gives 25x speedup for running isFollowing queries
-            def threadFollowHelper(followlist, newusers):
+            def threadFollowHelper(followlist):
                 threadlock1.acquire()
                 if not newusers:
                     return
@@ -69,7 +69,7 @@ class PointsBot(threading.Thread):
             threadlock1 = threading.Lock()
             threadList = list()
             while newusers:
-                newthread = threading.Thread(target = threadFollowHelper, args = [followlist, newusers])
+                newthread = threading.Thread(target = threadFollowHelper, args = [followlist])
                 newthread.start()
                 threadList.append(newthread)
             for thread in threadList:
