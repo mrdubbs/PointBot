@@ -1,5 +1,5 @@
 import json
-import urllib as urllib2
+import urllib as urllib2  # for compatibility reasons when moving between IDEs. Can just import urllib2
 import threading
 import socket
 import re
@@ -27,7 +27,7 @@ class PointsBot(threading.Thread):
         getChattersThread.start()
         addPointsThread.start()
 
-    def getChatters(self): # API refreshes every 5 miuntes, so should be enough to check status of all viewers per cycle
+    def getChatters(self): # API refreshes every 5 minutes, so should be enough to check status of all viewers per cycle
         try:
             query = urllib2.urlopen('https://tmi.twitch.tv/group/user/'+ self.channelName + '/chatters')
         except urllib2.error.HTTPError:
@@ -58,8 +58,8 @@ class PointsBot(threading.Thread):
         starttime = time()
         followlist = list()
         if newusers:
-            # multithreading gives 25x speedup for running isFollowing queries
-            def threadFollowHelper(followlist):
+            # multi-threading gives 25x speedup for running isFollowing queries
+            def threadFollowHelper():
                 threadlock1.acquire()
                 if not newusers:
                     return
@@ -69,16 +69,17 @@ class PointsBot(threading.Thread):
             threadlock1 = threading.Lock()
             threadList = list()
             while newusers:
-                newthread = threading.Thread(target = threadFollowHelper, args = [followlist])
+                newthread = threading.Thread(target=threadFollowHelper)
                 newthread.start()
                 threadList.append(newthread)
             for thread in threadList:
                 thread.join()
             # executemany gives 5x speedup over multiple execute statements
-            self.cursor.executemany('insert into ' + self.channelName + ' (id, isFollowing) values(%s, %s)', followlist)
+            executeSQL(self.cursor, 'insert into ' + self.channelName + ' (id, isFollowing) values(%s, %s)',
+                       isMany=True, args=followlist)
         print(self.channelName + ': Complete. Took %s seconds' % (time() - starttime))
 
-    def addPoints(self): # add points every minute
+    def addPoints(self):  # add points every minute
         while True:
             executeSQL(self.cursor, 'update {} set points = points + {}*'
                                        'if(isActive, 1, 0)*'
@@ -131,7 +132,7 @@ class PointsBot(threading.Thread):
                 return
             if executeSQL(self.cursor, 'show tables like "{}"'.format(self.channelName)):
                 amount = int(cmdlist[1])
-                if amount < self.getPoints(user, self.channelName):
+                if amount < self.getPoints(user):
                     executeSQL(self.cursor, 'set @rnum = floor(1 + rand()*100);')
                     executeSQL(self.cursor, 'update {} set points = points + {}*'
                                                '(case when @rnum > 90 then 2 '
@@ -144,7 +145,7 @@ class PointsBot(threading.Thread):
                     self.usedGambles[user] = time()
                     self.sendMessage('{} rolled a {} and now has {} points'.format(user, rnum, points))
         elif cmdlist[0] == '!points' and self.channelName == HOME:
-            current = self.getPoints(user, self.channelName)
+            current = self.getPoints(user)
             self.sendMessage('{}, you have {} points'.format(user, current))
         elif cmdlist[0] == '!addcom' and self.channelName == HOME:
             if len(cmdlist) < 3 or cmdlist[1][0] != '!':
@@ -168,10 +169,10 @@ class PointsBot(threading.Thread):
                 self.sendMessage('{}, the format for editing commands is !editcom !<commandname> <newmessage>'.format(user))
                 return
             if executeSQL(self.cursor, 'show tables like "{}"'.format(self.channelName)):
-                newcom = cmdlist[1]
+                editcom = cmdlist[1]
                 message = str(' '.join(cmdlist[2:])).strip('[]')
-                executeSQL(self.cursor, 'update {} set message = "{}" where cmd = "{}"'.format(self.channelName + 'cmd', message, newcom))
-                self.sendMessage('{}, {} was succesfully edited!'.format(user, newcom))
+                executeSQL(self.cursor, 'update {} set message = "{}" where cmd = "{}"'.format(self.channelName + 'cmd', message, editcom))
+                self.sendMessage('{}, {} was succesfully edited!'.format(user, editcom))
         elif cmdlist[0] == '!commands' and self.channelName == HOME:
             if executeSQL(self.cursor, 'show tables like "{}"'.format(self.channelName)):
                 allcommands = executeSQL(self.cursor, 'select cmd from {}cmd'.format(self.channelName))
@@ -210,15 +211,19 @@ class PointsBot(threading.Thread):
         try:
             query = urllib2.urlopen(TWITCH + '/users/' + user + '/follows/channels/' + self.channelName + CLIENT_ID)
             data = json.load(query)
-        except urllib2.error.HTTPError, ValueError:
+        except urllib2.error.HTTPError:
             return False
         return 'error' not in data.keys()
 
 threadlock2 = threading.Lock()
-def executeSQL(cursor, command):
+def executeSQL(cursor, command, isMany=None, args=None):
     threadlock2.acquire()
     try:
-        cursor.execute(command)
+        if isMany:
+            cursor.executemany(command, args)
+        else:
+            for result in cursor.execute(command, multi=True):
+                pass
     except IndexError:  # a bug in the execute command sometimes causes this error to occur
         pass
     data = cursor.fetchall() if cursor.description else CONN.commit()
